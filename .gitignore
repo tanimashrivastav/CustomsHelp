@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+.venv/
+venv/
+ENV/
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Model artifacts / large files
+*.pt
+*.onnx
+*.engine
+
+# Logs
+*.log
+
+# Secrets
+*.key
+*.pem
