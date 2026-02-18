@@ -36,9 +36,9 @@ Current customs enforcement relies on human officers to identify and value milli
 ## 2. Proposed Solution: Hybrid Intelligence
 The CustomHelp architecture bifurcates the labor between speed and depth:
 
-Local Triage (ML): A YOLOv11 model serves as the high-speed "eyes." It scans raw imagery to identify suspicious material densities and geometric silhouettes associated with luxury categories.
+- Local Triage (ML): A YOLOv11 model serves as the high-speed "eyes." It scans raw imagery to identify suspicious material densities and geometric silhouettes associated with luxury categories.
 
-Autonomous Appraisal (Agentic AI): A multi-agent system serves as the "brain." Once an anomaly is flagged, the agent performs real-time research across global marketplaces and legal HTS databases to generate a verified appraisal report.
+- Autonomous Appraisal (Agentic AI): A multi-agent system serves as the "brain." Once an anomaly is flagged, the agent performs real-time research across global marketplaces and legal HTS databases to generate a verified appraisal report.
 
 ## 3. System Architecture
 
