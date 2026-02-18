@@ -17,6 +17,7 @@ This project is a simple end-to-end prototype:
 cd backend
 source .venv/bin/activate
 uvicorn app:app --host 127.0.0.1 --port 8000
+```
 
 # Agentic Triage and Automated Valuation of Stealth Luxury in Customs Enforcement
 
