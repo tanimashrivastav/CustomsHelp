@@ -19,8 +19,8 @@ ENV/
 
 # Model artifacts / large files
 *.pt
-*.onnx
 *.engine
+# best.onnx is committed (11.6MB, needed for Vercel deployment)
 
 # Frontend
 frontend/node_modules/

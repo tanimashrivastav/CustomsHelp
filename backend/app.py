@@ -8,62 +8,103 @@ import json
 import requests
 import numpy as np
 import cv2
+import onnxruntime as ort
 from bs4 import BeautifulSoup
 from google import genai
-from ultralytics import YOLO
 
 # -----------------------------
-# YOLO model (load once)
+# ONNX model (load once)
 # -----------------------------
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "best.pt")
-yolo = YOLO(MODEL_PATH)
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "best.onnx")
+CLASS_NAMES = ["0", "1", "2", "3", "4"]
+
+_session = ort.InferenceSession(MODEL_PATH, providers=["CPUExecutionProvider"])
+_input_name = _session.get_inputs()[0].name
 
 app = FastAPI()
 
-# Allow browser apps (Lovable UI) to call this API (CORS)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # later restrict to your Lovable domain
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # -----------------------------
+# Detection helpers
+# -----------------------------
+def _preprocess(img_bgr: np.ndarray, imgsz: int) -> np.ndarray:
+    img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+    img = cv2.resize(img, (imgsz, imgsz))
+    img = img.astype(np.float32) / 255.0
+    return np.expand_dims(img.transpose(2, 0, 1), 0)  # BCHW
+
+
+def _postprocess(output: np.ndarray, orig_w: int, orig_h: int, imgsz: int, conf_thresh: float) -> List[Dict]:
+    # YOLOv8 ONNX output: (1, 9, 5376) -> transpose to (5376, 9)
+    pred = output[0].transpose(1, 0)  # (num_anchors, 4 + num_classes)
+    boxes_cxcywh = pred[:, :4]
+    class_scores = pred[:, 4:]
+
+    class_ids = np.argmax(class_scores, axis=1)
+    confidences = np.max(class_scores, axis=1)
+
+    mask = confidences >= conf_thresh
+    boxes_cxcywh = boxes_cxcywh[mask]
+    confidences = confidences[mask]
+    class_ids = class_ids[mask]
+
+    if len(confidences) == 0:
+        return []
+
+    # cx,cy,w,h (model coords) -> x1,y1,w,h for NMS
+    x1 = boxes_cxcywh[:, 0] - boxes_cxcywh[:, 2] / 2
+    y1 = boxes_cxcywh[:, 1] - boxes_cxcywh[:, 3] / 2
+    nms_boxes = np.stack([x1, y1, boxes_cxcywh[:, 2], boxes_cxcywh[:, 3]], axis=1)
+
+    indices = cv2.dnn.NMSBoxes(nms_boxes.tolist(), confidences.tolist(), conf_thresh, 0.45)
+    if len(indices) == 0:
+        return []
+
+    scale_x = orig_w / imgsz
+    scale_y = orig_h / imgsz
+    detections = []
+    for i in indices.flatten():
+        cx, cy, w, h = boxes_cxcywh[i]
+        x1 = (cx - w / 2) * scale_x
+        y1 = (cy - h / 2) * scale_y
+        x2 = (cx + w / 2) * scale_x
+        y2 = (cy + h / 2) * scale_y
+        detections.append({
+            "class_id": int(class_ids[i]),
+            "class_name": CLASS_NAMES[int(class_ids[i])],
+            "confidence": float(confidences[i]),
+            "bbox_xyxy": [float(x1), float(y1), float(x2), float(y2)],
+        })
+    return detections
+
+
+def _decode_image_bytes(content: bytes) -> np.ndarray:
+    data = np.frombuffer(content, dtype=np.uint8)
+    return cv2.imdecode(data, cv2.IMREAD_COLOR)
+
+
+def _run_onnx(img_bgr: np.ndarray, imgsz: int, conf: float) -> Dict[str, Any]:
+    h, w = img_bgr.shape[:2]
+    blob = _preprocess(img_bgr, imgsz)
+    outputs = _session.run(None, {_input_name: blob})
+    dets = _postprocess(outputs[0], w, h, imgsz, conf)
+    return {"image_w": w, "image_h": h, "detections": dets}
+
+
+# -----------------------------
 # Detection endpoints
 # -----------------------------
 class DetectRequest(BaseModel):
-    urls: List[str]      # public image URLs
-    imgsz: int = 512     # inference image size
-    conf: float = 0.25   # confidence threshold
-
-
-def _decode_image_bytes(content: bytes):
-    data = np.frombuffer(content, dtype=np.uint8)
-    img = cv2.imdecode(data, cv2.IMREAD_COLOR)
-    return img
-
-
-def _run_yolo_on_bgr(img_bgr, imgsz: int, conf: float) -> Dict[str, Any]:
-    pred = yolo.predict(img_bgr, imgsz=imgsz, conf=conf, verbose=False)[0]
-    h, w = img_bgr.shape[:2]
-
-    dets = []
-    if pred.boxes is not None and len(pred.boxes) > 0:
-        boxes = pred.boxes.xyxy.cpu().numpy()
-        confs = pred.boxes.conf.cpu().numpy()
-        clss = pred.boxes.cls.cpu().numpy().astype(int)
-        names = pred.names
-
-        for (x1, y1, x2, y2), c, k in zip(boxes, confs, clss):
-            dets.append({
-                "class_id": int(k),
-                "class_name": names[int(k)],
-                "confidence": float(c),
-                "bbox_xyxy": [float(x1), float(y1), float(x2), float(y2)]
-            })
-
-    return {"image_w": w, "image_h": h, "detections": dets}
+    urls: List[str]
+    imgsz: int = 512
+    conf: float = 0.25
 
 
 @app.get("/health")
@@ -82,7 +123,7 @@ def detect(req: DetectRequest):
             if img is None:
                 results.append({"url": url, "error": "Could not decode image"})
                 continue
-            out = _run_yolo_on_bgr(img, imgsz=req.imgsz, conf=req.conf)
+            out = _run_onnx(img, imgsz=req.imgsz, conf=req.conf)
             results.append({"url": url, **out})
         except Exception as e:
             results.append({"url": url, "error": f"{type(e).__name__}: {e}"})
@@ -95,8 +136,7 @@ async def detect_file(file: UploadFile = File(...), imgsz: int = 512, conf: floa
     img = _decode_image_bytes(content)
     if img is None:
         return {"error": "Could not decode uploaded image"}
-    out = _run_yolo_on_bgr(img, imgsz=imgsz, conf=conf)
-    return out
+    return _run_onnx(img, imgsz=imgsz, conf=conf)
 
 
 # -----------------------------
@@ -128,9 +168,6 @@ def _fetch_text(url: str, timeout: int = 20) -> str:
 
 
 def _plan_sources(class_name: str, jurisdiction: str) -> List[Dict[str, str]]:
-    """
-    Router/planner step: pick a small set of trusted sources to retrieve.
-    """
     item = (class_name or "").lower().strip()
     sources: List[Dict[str, str]] = []
 
@@ -156,14 +193,10 @@ def _plan_sources(class_name: str, jurisdiction: str) -> List[Dict[str, str]]:
 
 
 def _extract_json_best_effort(text: str) -> Dict[str, Any]:
-    """
-    Try to parse JSON. If Gemini returns extra text, attempt to extract a JSON object.
-    """
     text = (text or "").strip()
     try:
         return json.loads(text)
     except Exception:
-        # Try to find the first {...} block
         m = re.search(r"\{.*\}", text, flags=re.DOTALL)
         if m:
             try:
@@ -223,7 +256,6 @@ EVIDENCE:
 {evidence}
 """
 
-    # Agentic robustness: don't crash if Gemini errors (quota, network, etc.)
     try:
         resp = client.models.generate_content(
             model="models/gemini-flash-latest",
@@ -231,7 +263,6 @@ EVIDENCE:
         )
         text = getattr(resp, "text", "") or ""
         out = _extract_json_best_effort(text)
-        # Ensure sources are present even if model forgets
         out["item"] = out.get("item") or item
         out["sources"] = sources
         return out
@@ -248,27 +279,17 @@ EVIDENCE:
 
 @app.post("/object-info")
 def object_info(req: ObjectInfoRequest):
-    """
-    Agentic endpoint:
-    1) Plan sources (router)
-    2) Retrieve evidence (fetch URLs)
-    3) Synthesize structured answer (Gemini)
-    4) Fallback if LLM fails
-    """
     item = (req.class_name or "").strip()
     if not item:
         return {"error": "class_name is required"}
 
     sources = _plan_sources(item, req.jurisdiction)
-
     chunks: List[str] = []
     for s in sources:
         chunks.append(f"\n\n--- SOURCE: {s['title']} ({s['url']}) ---\n")
-        txt = _fetch_text(s["url"])
-        chunks.append(txt[:4000])  # keep evidence small
+        chunks.append(_fetch_text(s["url"])[:4000])
 
     evidence = "\n".join(chunks)
-
     return _call_gemini_for_json(
         item=item,
         context=req.context,
