@@ -1,7 +1,7 @@
 import type { DetectionResponse, EnrichmentResponse, ImageSize } from "./types";
 
 const STORAGE_KEY = "xray-api-base-url";
-const DEFAULT_URL = "http://127.0.0.1:8000";
+const DEFAULT_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
 export function getApiBaseUrl(): string {
   return localStorage.getItem(STORAGE_KEY) || DEFAULT_URL;
