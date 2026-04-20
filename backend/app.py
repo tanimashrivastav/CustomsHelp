@@ -15,7 +15,7 @@ from ultralytics import YOLO
 # -----------------------------
 # YOLO model (load once)
 # -----------------------------
-MODEL_PATH = "best.pt"
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "best.pt")
 yolo = YOLO(MODEL_PATH)
 
 app = FastAPI()

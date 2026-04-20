@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 220 20% 10%;
+    --foreground: 210 20% 90%;
+
+    --card: 220 18% 13%;
+    --card-foreground: 210 20% 90%;
+
+    --popover: 220 18% 13%;
+    --popover-foreground: 210 20% 90%;
+
+    --primary: 160 100% 45%;
+    --primary-foreground: 220 20% 6%;
+
+    --secondary: 220 16% 18%;
+    --secondary-foreground: 210 20% 85%;
+
+    --muted: 220 14% 16%;
+    --muted-foreground: 215 15% 55%;
+
+    --accent: 220 16% 20%;
+    --accent-foreground: 210 20% 90%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 14% 20%;
+    --input: 220 14% 20%;
+    --ring: 160 100% 45%;
+
+    --radius: 0.5rem;
+
+    --detection: 210 60% 55%;
+    --detection-selected: 160 100% 45%;
+
+    --sidebar-background: 220 20% 8%;
+    --sidebar-foreground: 210 20% 85%;
+    --sidebar-primary: 160 100% 45%;
+    --sidebar-primary-foreground: 220 20% 6%;
+    --sidebar-accent: 220 16% 14%;
+    --sidebar-accent-foreground: 210 20% 85%;
+    --sidebar-border: 220 14% 18%;
+    --sidebar-ring: 160 100% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  code, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}

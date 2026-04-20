@@ -22,6 +22,11 @@ ENV/
 *.onnx
 *.engine
 
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env*
+
 # Logs
 *.log
 
