@@ -11,7 +11,6 @@ import { Package, ExternalLink, Loader2, Info, ChevronDown, Search, SlidersHoriz
 
 interface DetailsPanelProps {
   detection: IndexedDetection | null;
-  apiBaseUrl: string;
   hasRun: boolean;
   detectionsCount: number;
   runSettings?: { imgsz: number; threshold: number; timestamp: number } | null;
@@ -22,7 +21,6 @@ interface DetailsPanelProps {
 
 export default function DetailsPanel({
   detection,
-  apiBaseUrl,
   hasRun,
   detectionsCount,
   runSettings,
@@ -41,7 +39,7 @@ export default function DetailsPanel({
     setIsMocked(false);
     setEnrichError(false);
     try {
-      const data = await getObjectInfo(detection.class_name, apiBaseUrl);
+      const data = await getObjectInfo(detection.class_name);
       setEnrichment(data);
     } catch {
       setEnrichment(getMockEnrichment(detection.class_name));

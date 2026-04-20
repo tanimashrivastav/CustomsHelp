@@ -4,7 +4,7 @@ import ImageViewer from "@/components/ImageViewer";
 import DetectionList from "@/components/DetectionList";
 import DetailsPanel from "@/components/DetailsPanel";
 import { indexDetections, DEFAULT_CONF_THRESHOLD } from "@/lib/flagging";
-import { detectFile, getApiBaseUrl } from "@/lib/api";
+import { detectFile } from "@/lib/api";
 import { SAMPLE_IMAGES, type SampleImage } from "@/lib/sample-images";
 import type { IndexedDetection, DetectionResponse, ImageSize } from "@/lib/types";
 import { saveRunLog } from "@/lib/metrics";
@@ -96,9 +96,8 @@ const Index = () => {
       }
 
       setStatus("uploading");
-      const baseUrl = getApiBaseUrl();
       setStatus("detecting");
-      const resp = await detectFile(blob as File, name, baseUrl, imageSize, confThreshold);
+      const resp = await detectFile(blob as File, name, imageSize, confThreshold);
       const elapsed = Date.now() - startTime;
 
       setResponse(resp);
@@ -246,7 +245,6 @@ const Index = () => {
         <aside className="w-72 shrink-0 border-l border-border bg-card overflow-hidden">
           <DetailsPanel
             detection={selected}
-            apiBaseUrl={getApiBaseUrl()}
             hasRun={hasRun}
             detectionsCount={detections.length}
             runSettings={runSettings}

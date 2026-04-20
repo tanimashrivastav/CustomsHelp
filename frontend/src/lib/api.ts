@@ -1,19 +1,10 @@
 import type { DetectionResponse, EnrichmentResponse, ImageSize } from "./types";
 
-const STORAGE_KEY = "xray-api-base-url";
-const DEFAULT_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/_/backend";
 
-export function getApiBaseUrl(): string {
-  return localStorage.getItem(STORAGE_KEY) || DEFAULT_URL;
-}
-
-export function setApiBaseUrl(url: string) {
-  localStorage.setItem(STORAGE_KEY, url);
-}
-
-export async function checkHealth(baseUrl: string): Promise<boolean> {
+export async function checkHealth(): Promise<boolean> {
   try {
-    const res = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`${API_BASE_URL}/health`, { signal: AbortSignal.timeout(3000) });
     return res.ok;
   } catch {
     return false;
@@ -23,13 +14,12 @@ export async function checkHealth(baseUrl: string): Promise<boolean> {
 export async function detectFile(
   file: File | Blob,
   filename: string,
-  baseUrl: string,
   imgsz: ImageSize = 512,
   conf: number = 0.25,
 ): Promise<DetectionResponse> {
   const form = new FormData();
   form.append("file", file, filename);
-  const res = await fetch(`${baseUrl}/detect-file?imgsz=${imgsz}&conf=${conf}`, {
+  const res = await fetch(`${API_BASE_URL}/detect-file?imgsz=${imgsz}&conf=${conf}`, {
     method: "POST",
     body: form,
   });
@@ -37,11 +27,8 @@ export async function detectFile(
   return res.json();
 }
 
-export async function getObjectInfo(
-  className: string,
-  baseUrl: string,
-): Promise<EnrichmentResponse> {
-  const res = await fetch(`${baseUrl}/object-info`, {
+export async function getObjectInfo(className: string): Promise<EnrichmentResponse> {
+  const res = await fetch(`${API_BASE_URL}/object-info`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ class_name: className, context: "airport", jurisdiction: "US" }),

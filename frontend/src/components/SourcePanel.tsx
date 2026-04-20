@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -8,11 +8,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SAMPLE_IMAGES, type SampleImage } from "@/lib/sample-images";
-import { getApiBaseUrl, setApiBaseUrl, checkHealth } from "@/lib/api";
 import { DEFAULT_CONF_THRESHOLD, MIN_CONF_THRESHOLD, MAX_CONF_THRESHOLD } from "@/lib/flagging";
 import type { SourceMode, ImageSize } from "@/lib/types";
 import {
-  Upload, Link, Image, Play, Wifi, WifiOff, Settings2, ChevronDown, ChevronUp,
+  Upload, Link, Image, Play, ChevronDown, ChevronUp,
 } from "lucide-react";
 
 interface SourcePanelProps {
@@ -37,26 +36,10 @@ export default function SourcePanel({
   hideLowConf, onToggleHideLowConf,
   onRunDetection, status,
 }: SourcePanelProps) {
-  const [apiUrl, setApiUrl] = useState(getApiBaseUrl);
-  const [healthy, setHealthy] = useState<boolean | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [sourceMode, setSourceMode] = useState<SourceMode>("gallery");
   const [urlInput, setUrlInput] = useState("");
 
-  const doHealthCheck = useCallback(async () => {
-    setHealthy(null);
-    const ok = await checkHealth(apiUrl);
-    setHealthy(ok);
-  }, [apiUrl]);
-
-  useEffect(() => {
-    doHealthCheck();
-  }, [doHealthCheck]);
-
-  const handleApiUrlChange = (v: string) => {
-    setApiUrl(v);
-    setApiBaseUrl(v);
-  };
 
   const isRunning = status === "fetching" || status === "uploading" || status === "detecting";
 
@@ -147,40 +130,6 @@ export default function SourcePanel({
                 )}
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* API Configuration */}
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-primary">
-              <Settings2 className="h-4 w-4" /> API
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <Label className="text-xs text-muted-foreground">Base URL</Label>
-              <Input
-                value={apiUrl}
-                onChange={(e) => handleApiUrlChange(e.target.value)}
-                className="mt-1 font-mono text-xs"
-                placeholder="http://127.0.0.1:8000"
-              />
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                If deployed, localhost won't work—use a public URL.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {healthy === null && <div className="h-2 w-2 rounded-full bg-muted-foreground animate-pulse" />}
-              {healthy === true && <Wifi className="h-3.5 w-3.5 text-primary" />}
-              {healthy === false && <WifiOff className="h-3.5 w-3.5 text-destructive" />}
-              <span className="text-xs text-muted-foreground">
-                {healthy === null ? "Checking..." : healthy ? "Connected" : "Not reachable"}
-              </span>
-              <Button size="sm" variant="ghost" className="ml-auto h-6 text-[10px]" onClick={doHealthCheck}>
-                Retry
-              </Button>
-            </div>
           </CardContent>
         </Card>
 
